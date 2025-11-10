@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600">
+  <defs>
+    <linearGradient id="heroGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#334155;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="glow1" cx="20%" cy="30%">
+      <stop offset="0%" style="stop-color:rgba(59,130,246,0.3);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgba(59,130,246,0);stop-opacity:0" />
+    </radialGradient>
+    <radialGradient id="glow2" cx="80%" cy="70%">
+      <stop offset="0%" style="stop-color:rgba(99,102,241,0.3);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgba(99,102,241,0);stop-opacity:0" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="600" fill="url(#heroGradient)"/>
+  
+  <!-- Glow effects -->
+  <ellipse cx="240" cy="180" rx="200" ry="150" fill="url(#glow1)"/>
+  <ellipse cx="960" cy="420" rx="250" ry="180" fill="url(#glow2)"/>
+  
+  <!-- Abstract shapes representing paint/car -->
+  <g opacity="0.15">
+    <!-- Paint drops -->
+    <circle cx="150" cy="200" r="40" fill="#3b82f6"/>
+    <circle cx="200" cy="250" r="30" fill="#6366f1"/>
+    <circle cx="1000" cy="400" r="50" fill="#3b82f6"/>
+    <circle cx="1050" cy="450" r="35" fill="#6366f1"/>
+    
+    <!-- Car silhouette -->
+    <path d="M 500 300 L 550 280 L 650 280 L 700 300 L 700 350 L 650 380 L 550 380 L 500 350 Z" 
+          fill="#94a3b8" opacity="0.2"/>
+    <rect x="520" y="300" width="160" height="80" rx="5" fill="#94a3b8" opacity="0.15"/>
+    
+    <!-- Paint brush strokes -->
+    <path d="M 300 150 Q 400 200 500 150 T 700 150" 
+          stroke="#94a3b8" stroke-width="3" fill="none" opacity="0.1"/>
+    <path d="M 800 200 Q 900 250 1000 200 T 1200 200" 
+          stroke="#94a3b8" stroke-width="3" fill="none" opacity="0.1"/>
+  </g>
+  
+  <!-- Grid pattern -->
+  <g opacity="0.05">
+    <line x1="0" y1="100" x2="1200" y2="100" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="0" y1="200" x2="1200" y2="200" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="0" y1="300" x2="1200" y2="300" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="0" y1="400" x2="1200" y2="400" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="0" y1="500" x2="1200" y2="500" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="200" y1="0" x2="200" y2="600" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="400" y1="0" x2="400" y2="600" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="600" y1="0" x2="600" y2="600" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="800" y1="0" x2="800" y2="600" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="1000" y1="0" x2="1000" y2="600" stroke="#94a3b8" stroke-width="1"/>
+  </g>
+</svg>
+
