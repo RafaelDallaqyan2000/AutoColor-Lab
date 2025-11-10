@@ -81,7 +81,6 @@ async function fetchCarByVINFromAPI(
     const engineConfiguration = getValue("EngineConfiguration") || "";
     const engineHP = getValue("EngineHP") || "";
     const fuelType = getValue("FuelTypePrimary") || "";
-    const driveType = getValue("DriveType") || "";
 
     // Проверяем наличие ошибки в VIN (ErrorCode и ErrorText)
     const errorCode = getValue("ErrorCode");
