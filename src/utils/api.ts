@@ -4,11 +4,16 @@ import { Product } from "../types/product";
 import { findCarByVIN } from "../data/carDatabase";
 import { getColorMatches } from "../data/colorMatches";
 import { products } from "../data/products";
+import { apiCache } from "./cache";
 
-// Конфигурация API (можно вынести в .env)
+// Конфигурация API
 const API_CONFIG = {
-  useRealAPI: true, // Переключить на true для использования реального API
-  apiUrl:
+  // Использовать бекенд API (по умолчанию true, можно отключить через .env)
+  useBackend: process.env.REACT_APP_USE_BACKEND !== "false",
+  backendUrl: process.env.REACT_APP_BACKEND_URL || "http://localhost:3001/api",
+  // Использовать внешний VIN API (по умолчанию false)
+  useRealVINAPI: process.env.REACT_APP_USE_VIN_API === "true",
+  vinApiUrl:
     process.env.REACT_APP_VIN_API_URL ||
     "https://vpic.nhtsa.dot.gov/api/vehicles",
 };
@@ -39,7 +44,7 @@ async function fetchCarByVINFromAPI(
   try {
     // NHTSA API не требует API ключа
     // Формируем URL с опциональным годом модели
-    let url = `${API_CONFIG.apiUrl}/DecodeVinValues/${vin}?format=json`;
+    let url = `${API_CONFIG.vinApiUrl}/DecodeVinValues/${vin}?format=json`;
     if (year) {
       url += `&modelyear=${year}`;
     }
@@ -122,20 +127,54 @@ async function fetchCarByVINFromAPI(
 
 /**
  * API запрос для поиска автомобиля по VIN
- * Использует реальный API если настроен, иначе моковые данные
+ * Использует бекенд API, внешний VIN API или моковые данные
  */
 export async function fetchCarByVIN(vin: string): Promise<CarInfo | null> {
-  // Если включен реальный API
-  if (API_CONFIG.useRealAPI) {
+  // Если включен бекенд API
+  if (API_CONFIG.useBackend) {
+    try {
+      const response = await fetch(`${API_CONFIG.backendUrl}/cars/vin/${vin}`);
+
+      if (response.ok) {
+        const carInfo = await response.json();
+        return carInfo;
+      } else if (response.status === 404) {
+        // Автомобиль не найден в БД, пробуем внешний VIN API если включен
+        if (API_CONFIG.useRealVINAPI) {
+          const carInfo = await fetchCarByVINFromAPI(vin);
+          if (carInfo && carInfo.make) {
+            // Сохраняем в бекенд для будущего использования
+            try {
+              await fetch(`${API_CONFIG.backendUrl}/cars`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(carInfo),
+              });
+            } catch (error) {
+              console.warn("Не удалось сохранить автомобиль в БД:", error);
+            }
+            return carInfo;
+          }
+        }
+        // Если внешний API не вернул данные, используем моковые данные
+        console.warn("Автомобиль не найден, используем моковые данные");
+        return findCarByVIN(vin);
+      }
+    } catch (error) {
+      console.error("Ошибка при запросе к бекенду:", error);
+      // Fallback на моковые данные
+      return findCarByVIN(vin);
+    }
+  }
+
+  // Если бекенд не используется, пробуем внешний VIN API
+  if (API_CONFIG.useRealVINAPI) {
     const carInfo = await fetchCarByVINFromAPI(vin);
     if (carInfo && carInfo.make) {
-      // Если API вернул данные, используем их
       return carInfo;
     }
-    // Если API не вернул данные, используем fallback на моковые данные
-    console.warn(
-      "NHTSA API request failed or returned incomplete data, using mock data as fallback"
-    );
   }
 
   // Используем моковые данные
@@ -151,7 +190,7 @@ export async function fetchCarByVIN(vin: string): Promise<CarInfo | null> {
 export async function fetchCarsByVINBatch(
   vins: Array<{ vin: string; year?: number }>
 ): Promise<CarInfo[]> {
-  if (!API_CONFIG.useRealAPI || vins.length === 0) {
+  if (!API_CONFIG.useRealVINAPI || vins.length === 0) {
     return [];
   }
 
@@ -161,7 +200,7 @@ export async function fetchCarsByVINBatch(
       .map((item) => `${item.vin}${item.year ? `,${item.year}` : ""}`)
       .join("; ");
 
-    const url = `${API_CONFIG.apiUrl}/DecodeVINValuesBatch/`;
+    const url = `${API_CONFIG.vinApiUrl}/DecodeVINValuesBatch/`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -250,31 +289,247 @@ export async function fetchCarsByVINBatch(
 }
 
 /**
- * Имитация API запроса для подбора цветов
+ * API запрос для подбора цветов
  */
 export async function fetchColorMatches(
   colorCode: string,
   brand: string
 ): Promise<ColorMatch[]> {
-  // Имитация задержки сети
+  // Если включен бекенд API
+  if (API_CONFIG.useBackend) {
+    try {
+      const params = new URLSearchParams({
+        colorCode,
+        brand,
+      });
+      const response = await fetch(
+        `${API_CONFIG.backendUrl}/color-matches?${params.toString()}`
+      );
+
+      if (response.ok) {
+        const matches = await response.json();
+        // Преобразуем ID и ID продуктов из числа в строку, price в число
+        return matches.map((match: any) => ({
+          ...match,
+          id: String(match.id),
+          products:
+            match.products?.map((product: any) => ({
+              ...product,
+              id: String(product.id),
+              price:
+                typeof product.price === "string"
+                  ? parseFloat(product.price)
+                  : product.price,
+            })) || [],
+        }));
+      } else {
+        console.warn(
+          "Ошибка при получении совпадений цветов, используем моковые данные"
+        );
+      }
+    } catch (error) {
+      console.error("Ошибка при запросе к бекенду:", error);
+    }
+  }
+
+  // Fallback на моковые данные
   await new Promise((resolve) => setTimeout(resolve, 800));
   return getColorMatches(colorCode, brand);
 }
 
 /**
- * Имитация API запроса для получения товаров
+ * API запрос для получения товаров
  */
 export async function fetchProducts(): Promise<Product[]> {
-  // Имитация задержки сети
+  const cacheKey = "products";
+
+  // Проверяем кэш
+  const cached = apiCache.get<Product[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Если включен бекенд API
+  if (API_CONFIG.useBackend) {
+    try {
+      const response = await fetch(`${API_CONFIG.backendUrl}/products`);
+
+      if (response.ok) {
+        const productsData = await response.json();
+        // Преобразуем ID из числа в строку и price в число для совместимости
+        const transformedProducts = productsData.map((product: any) => ({
+          ...product,
+          id: String(product.id),
+          price:
+            typeof product.price === "string"
+              ? parseFloat(product.price)
+              : product.price,
+        }));
+
+        // Сохраняем в кэш на 5 минут
+        apiCache.set(cacheKey, transformedProducts, 5 * 60 * 1000);
+        return transformedProducts;
+      } else {
+        console.warn(
+          "Ошибка при получении продуктов, используем моковые данные"
+        );
+      }
+    } catch (error) {
+      console.error("Ошибка при запросе к бекенду:", error);
+    }
+  }
+
+  // Fallback на моковые данные
   await new Promise((resolve) => setTimeout(resolve, 300));
   return products;
 }
 
 /**
- * Имитация API запроса для получения товара по ID
+ * API запрос для получения товара по ID
  */
 export async function fetchProductById(id: string): Promise<Product | null> {
-  // Имитация задержки сети
+  // Если включен бекенд API
+  if (API_CONFIG.useBackend) {
+    try {
+      const response = await fetch(`${API_CONFIG.backendUrl}/products/${id}`);
+
+      if (response.ok) {
+        const product = await response.json();
+        // Преобразуем ID из числа в строку и price в число для совместимости
+        return {
+          ...product,
+          id: String(product.id),
+          price:
+            typeof product.price === "string"
+              ? parseFloat(product.price)
+              : product.price,
+        };
+      } else if (response.status === 404) {
+        return null;
+      } else {
+        console.warn(
+          "Ошибка при получении продукта, используем моковые данные"
+        );
+      }
+    } catch (error) {
+      console.error("Ошибка при запросе к бекенду:", error);
+    }
+  }
+
+  // Fallback на моковые данные
   await new Promise((resolve) => setTimeout(resolve, 300));
   return products.find((p) => p.id === id) || null;
+}
+
+/**
+ * API запрос для создания нового продукта (админка)
+ */
+export async function createProduct(
+  product: Omit<Product, "id">
+): Promise<Product> {
+  if (API_CONFIG.useBackend) {
+    try {
+      const response = await fetch(`${API_CONFIG.backendUrl}/products`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(product),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Ошибка при создании продукта");
+      }
+
+      const createdProduct = await response.json();
+      const transformedProduct = {
+        ...createdProduct,
+        id: String(createdProduct.id),
+        price:
+          typeof createdProduct.price === "string"
+            ? parseFloat(createdProduct.price)
+            : createdProduct.price,
+      };
+
+      // Инвалидируем кэш продуктов
+      apiCache.delete("products");
+
+      return transformedProduct;
+    } catch (error) {
+      console.error("Ошибка при создании продукта:", error);
+      throw error;
+    }
+  }
+  throw new Error("Бекенд не настроен");
+}
+
+/**
+ * API запрос для обновления продукта (админка)
+ */
+export async function updateProduct(
+  id: string,
+  product: Partial<Omit<Product, "id">>
+): Promise<Product> {
+  if (API_CONFIG.useBackend) {
+    try {
+      const response = await fetch(`${API_CONFIG.backendUrl}/products/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(product),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Ошибка при обновлении продукта");
+      }
+
+      const updatedProduct = await response.json();
+      const transformedProduct = {
+        ...updatedProduct,
+        id: String(updatedProduct.id),
+        price:
+          typeof updatedProduct.price === "string"
+            ? parseFloat(updatedProduct.price)
+            : updatedProduct.price,
+      };
+
+      // Инвалидируем кэш продуктов
+      apiCache.delete("products");
+
+      return transformedProduct;
+    } catch (error) {
+      console.error("Ошибка при обновлении продукта:", error);
+      throw error;
+    }
+  }
+  throw new Error("Бекенд не настроен");
+}
+
+/**
+ * API запрос для удаления продукта (админка)
+ */
+export async function deleteProduct(id: string): Promise<void> {
+  if (API_CONFIG.useBackend) {
+    try {
+      const response = await fetch(`${API_CONFIG.backendUrl}/products/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Ошибка при удалении продукта");
+      }
+
+      // Инвалидируем кэш продуктов
+      apiCache.delete("products");
+    } catch (error) {
+      console.error("Ошибка при удалении продукта:", error);
+      throw error;
+    }
+  } else {
+    throw new Error("Бекенд не настроен");
+  }
 }

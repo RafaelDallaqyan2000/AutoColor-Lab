@@ -21,20 +21,18 @@ export interface StoreInfo {
 
 export const storeInfo: StoreInfo = {
   name: "AutoColor Lab",
-  address: "г. Москва, ул. Автомобильная, д. 15",
-  phone: "+7 (495) 123-45-67",
+  address: "д. Гетаовит, ул.19, переулок 1, д. 8",
+  phone: "+374 98 87 58 25",
   email: "info@autocolorlab.ru",
   workingHours: {
-    weekdays: "Пн-Пт: 9:00 - 20:00",
-    saturday: "Сб: 10:00 - 18:00",
-    sunday: "Вс: выходной",
+    weekdays: "Пн-Вс: 11:00 - 24:00 (без выходных)",
   },
   coordinates: {
-    lat: 55.7558,
-    lng: 37.6173,
+    lat: 40.904409,
+    lng: 45.144666,
   },
   socialMedia: {
-    vk: "https://vk.com/autocolorlab",
-    telegram: "https://t.me/autocolorlab",
+    vk: "",
+    telegram: "",
   },
 };
